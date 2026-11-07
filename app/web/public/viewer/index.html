@@ -349,12 +349,13 @@ function resize(){ const w = view.clientWidth, h = view.clientHeight; if (canvas
 function tick(ts){
   requestAnimationFrame(tick); resize();
   const dtReal = Math.min(0.1, (ts - lastTs)/1000 || 0); lastTs = ts;
-  if (playing && traj){ acc += dtReal * speed; const adv = Math.floor(acc / traj.dt); if (adv > 0){ acc -= adv*traj.dt; if (frameIdx + adv >= traj.frames.length-1){ seek(traj.frames.length-1); playing = false; $('play').textContent = '▶ Phát'; } else seek(frameIdx + adv); } }
+  if (playing && traj){ acc += dtReal * speed; const adv = Math.floor(acc / traj.dt); if (adv > 0){ acc -= adv*traj.dt; if (frameIdx + adv >= traj.frames.length-1){ seek(traj.frames.length-1); playing = false; $('play').textContent = '▶ Phát'; if (window.parent !== window) window.parent.postMessage({ type: 'drone-viewer', event: 'end' }, '*'); } else seek(frameIdx + adv); } }
   rotors.forEach((r, i) => r.rotation.y += (i%2 ? 1 : -1) * (playing ? 0.9 : 0.15));
   controls.update(); renderer.render(scene, camera);
 }
 requestAnimationFrame(tick);
-window.__viewer = { load, seek, get traj(){ return traj; } };
+window.__viewer = { load, seek, play(){ if (traj && !playing) $('play').click(); }, pause(){ if (playing) $('play').click(); }, get traj(){ return traj; }, get playing(){ return playing; } };
+if (window.parent !== window) window.parent.postMessage({ type: 'drone-viewer', event: 'ready' }, '*');
 </script>
 </body>
 </html>

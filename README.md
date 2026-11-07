@@ -19,6 +19,7 @@ python train.py --config configs/g1_hover.yaml --seed 0            # luôn gui=F
 python evaluate.py --run results/<run_id> --controller ppo --episodes 100
 python evaluate.py --run results/<run_id> --controller pid --episodes 100
 python evaluate.py --run results/<run_id> --controller ppo --source yolo --episodes 100   # G4
+python scripts/eval_checkpoints.py --run results/<run_id> --episodes 3   # bay thử mỗi checkpoint → timeline/ (dashboard "Xem lại quá trình huấn luyện")
 python scripts/make_report.py                                        # docs/report_final.md
 python scripts/make_report.py --phase g1 --inject docs/report_G1.md
 python -m pytest

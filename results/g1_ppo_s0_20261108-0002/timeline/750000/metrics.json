@@ -1,0 +1,70 @@
+{
+  "schema": "drone-metrics/1",
+  "run_id": "g1_ppo_s0_20261108-0002",
+  "phase": "g1",
+  "controller": "ppo",
+  "source": null,
+  "checkpoint": "checkpoints/model_750000.zip",
+  "timesteps": 750000,
+  "created_at": "2026-11-08T00:21:14+07:00",
+  "git_commit": "bf95518e99c61a163d816cb5d74922f523439f26",
+  "eval_seeds": [
+    9000,
+    9002
+  ],
+  "n_episodes": 3,
+  "metrics": {
+    "n_episodes": 3,
+    "mean_return": 270.4733004627913,
+    "std_return": 3.417937841334594,
+    "mean_ep_len": 300.0,
+    "crash_count": 0,
+    "truncation_count": 0,
+    "collision_count": 0,
+    "mean_pos_err_after_settle": 0.01342108454798758,
+    "std_pos_err_after_settle": 0.0010437940076140036,
+    "max_pos_err_after_settle": 0.01484831657592555,
+    "success_rate": 1.0
+  },
+  "episodes": [
+    {
+      "seed": 9000,
+      "success": false,
+      "crashed": false,
+      "reason": "",
+      "steps": 300,
+      "t_end": 10.0,
+      "return": 271.21577977961124,
+      "mass_scale": 1.0,
+      "stage": "default",
+      "err_after_settle": 0.012381101487095338,
+      "d_goal": 0.010794142562584817
+    },
+    {
+      "seed": 9001,
+      "success": false,
+      "crashed": false,
+      "reason": "",
+      "steps": 300,
+      "t_end": 10.0,
+      "return": 265.9656381979603,
+      "mass_scale": 1.0,
+      "stage": "default",
+      "err_after_settle": 0.01484831657592555,
+      "d_goal": 0.009342842694211824
+    },
+    {
+      "seed": 9002,
+      "success": false,
+      "crashed": false,
+      "reason": "",
+      "steps": 300,
+      "t_end": 10.0,
+      "return": 274.2384834108025,
+      "mass_scale": 1.0,
+      "stage": "default",
+      "err_after_settle": 0.013033835580941856,
+      "d_goal": 0.011925497261798914
+    }
+  ]
+}

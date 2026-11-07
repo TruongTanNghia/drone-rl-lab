@@ -26,7 +26,30 @@ export type Progress = {
   file: string;
 };
 
-export type RunStatus = "đã huấn luyện" | "đang huấn luyện" | "chưa có log";
+export type RunStatus = "đã huấn luyện" | "đang huấn luyện" | "đã dừng" | "chưa có log";
+
+export type TimelineEntry = {
+  timesteps: number;
+  checkpoint: string;
+  metrics: Record<string, number | null>;
+  seeds: number[];
+  episodes: { seed: number; success: boolean; crashed: boolean; reason: string; steps: number; return: number }[];
+  file: string;
+};
+
+export type TimelineDoc = {
+  schema: string;
+  run_id: string;
+  phase: string;
+  controller: string;
+  n_episodes: number;
+  seed0: number;
+  seeds: number[];
+  created_at: string;
+  wall_time_sec: number;
+  entries: TimelineEntry[];
+  file: string;
+};
 
 export type RunSummary = {
   run_id: string;
@@ -37,6 +60,7 @@ export type RunSummary = {
   gate_rule: { name: string; metric: string; op: string; value: number; extra: string[] } | null;
   has_model: boolean;
   has_curve: boolean;
+  has_timeline: boolean;
   train_meta: Record<string, string | number> | null;
   status: RunStatus;
   progress: Progress | null;

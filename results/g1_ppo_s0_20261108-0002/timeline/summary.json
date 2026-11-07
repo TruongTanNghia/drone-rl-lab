@@ -1,0 +1,164 @@
+{
+  "schema": "drone-timeline/1",
+  "run_id": "g1_ppo_s0_20261108-0002",
+  "phase": "g1",
+  "controller": "ppo",
+  "n_episodes": 3,
+  "seed0": 9000,
+  "seeds": [
+    9000,
+    9001,
+    9002
+  ],
+  "created_at": "2026-11-08T00:21:14+07:00",
+  "wall_time_sec": 14.8,
+  "entries": [
+    {
+      "timesteps": 250000,
+      "checkpoint": "checkpoints/model_250000.zip",
+      "metrics": {
+        "n_episodes": 3,
+        "mean_return": 252.01312953157637,
+        "std_return": 19.916160504530147,
+        "mean_ep_len": 300.0,
+        "crash_count": 0,
+        "truncation_count": 0,
+        "collision_count": 0,
+        "mean_pos_err_after_settle": 0.02866411359406752,
+        "std_pos_err_after_settle": 0.017018972280901334,
+        "max_pos_err_after_settle": 0.05273173066745723,
+        "success_rate": 1.0
+      },
+      "seeds": [
+        9000,
+        9001,
+        9002
+      ],
+      "episodes": [
+        {
+          "seed": 9000,
+          "success": false,
+          "crashed": false,
+          "reason": "",
+          "steps": 300,
+          "return": 262.7562292470657
+        },
+        {
+          "seed": 9001,
+          "success": false,
+          "crashed": false,
+          "reason": "",
+          "steps": 300,
+          "return": 224.0934194331247
+        },
+        {
+          "seed": 9002,
+          "success": false,
+          "crashed": false,
+          "reason": "",
+          "steps": 300,
+          "return": 269.1897399145387
+        }
+      ],
+      "file": "results/g1_ppo_s0_20261108-0002/timeline/250000/metrics.json"
+    },
+    {
+      "timesteps": 500000,
+      "checkpoint": "checkpoints/model_500000.zip",
+      "metrics": {
+        "n_episodes": 3,
+        "mean_return": 265.8483836770005,
+        "std_return": 9.881941370733436,
+        "mean_ep_len": 300.0,
+        "crash_count": 0,
+        "truncation_count": 0,
+        "collision_count": 0,
+        "mean_pos_err_after_settle": 0.014005038690654115,
+        "std_pos_err_after_settle": 0.0005154840144917376,
+        "max_pos_err_after_settle": 0.014707511341690963,
+        "success_rate": 1.0
+      },
+      "seeds": [
+        9000,
+        9001,
+        9002
+      ],
+      "episodes": [
+        {
+          "seed": 9000,
+          "success": false,
+          "crashed": false,
+          "reason": "",
+          "steps": 300,
+          "return": 273.001347401318
+        },
+        {
+          "seed": 9001,
+          "success": false,
+          "crashed": false,
+          "reason": "",
+          "steps": 300,
+          "return": 251.87452328220823
+        },
+        {
+          "seed": 9002,
+          "success": false,
+          "crashed": false,
+          "reason": "",
+          "steps": 300,
+          "return": 272.6692803474752
+        }
+      ],
+      "file": "results/g1_ppo_s0_20261108-0002/timeline/500000/metrics.json"
+    },
+    {
+      "timesteps": 750000,
+      "checkpoint": "checkpoints/model_750000.zip",
+      "metrics": {
+        "n_episodes": 3,
+        "mean_return": 270.4733004627913,
+        "std_return": 3.417937841334594,
+        "mean_ep_len": 300.0,
+        "crash_count": 0,
+        "truncation_count": 0,
+        "collision_count": 0,
+        "mean_pos_err_after_settle": 0.01342108454798758,
+        "std_pos_err_after_settle": 0.0010437940076140036,
+        "max_pos_err_after_settle": 0.01484831657592555,
+        "success_rate": 1.0
+      },
+      "seeds": [
+        9000,
+        9001,
+        9002
+      ],
+      "episodes": [
+        {
+          "seed": 9000,
+          "success": false,
+          "crashed": false,
+          "reason": "",
+          "steps": 300,
+          "return": 271.21577977961124
+        },
+        {
+          "seed": 9001,
+          "success": false,
+          "crashed": false,
+          "reason": "",
+          "steps": 300,
+          "return": 265.9656381979603
+        },
+        {
+          "seed": 9002,
+          "success": false,
+          "crashed": false,
+          "reason": "",
+          "steps": 300,
+          "return": 274.2384834108025
+        }
+      ],
+      "file": "results/g1_ppo_s0_20261108-0002/timeline/750000/metrics.json"
+    }
+  ]
+}

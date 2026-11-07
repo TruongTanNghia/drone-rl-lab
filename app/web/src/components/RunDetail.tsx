@@ -6,6 +6,7 @@ import LearningCurve from "@/components/LearningCurve";
 import LiveTraining from "@/components/LiveTraining";
 import MetricsTable from "@/components/MetricsTable";
 import Provenance from "@/components/Provenance";
+import TrainingTimeline from "@/components/TrainingTimeline";
 import ViewerFrame, { viewerUrl } from "@/components/ViewerFrame";
 import { api, ApiError, fmt, fmtDur, fmtSteps, isTraining, PHASE_BLURB, PHASE_TITLES, type CurveRow, type RunDetail } from "@/lib/api";
 
@@ -106,6 +107,8 @@ export default function RunDetailView({ runId }: { runId: string }) {
                 <span className="chip chip-acc">
                   <span className="lamp lamp-acc" /> đang huấn luyện
                 </span>
+              ) : run.status === "đã dừng" ? (
+                <span className="chip chip-bad">đã dừng giữa chừng</span>
               ) : pol ? (
                 <span className={`stamp ${pol.gate.passed ? "stamp-good" : "stamp-bad"}`}>{pol.gate.passed ? "Đạt cổng" : "Chưa đạt cổng"}</span>
               ) : (
@@ -205,6 +208,17 @@ export default function RunDetailView({ runId }: { runId: string }) {
               </span>
             ))}
           </div>
+        </div>
+      </section>
+
+      {/* ── xem lại quá trình huấn luyện ── */}
+      <section className="panel reveal" style={{ animationDelay: "150ms" }}>
+        <div className="panel-head">
+          <h2>Xem lại quá trình huấn luyện</h2>
+          <span className="eyebrow">mỗi checkpoint bay thử trên seed đánh giá · tua qua từng mốc trong viewer 3D</span>
+        </div>
+        <div className="panel-body">
+          <TrainingTimeline runId={run.run_id} phase={run.phase} />
         </div>
       </section>
 

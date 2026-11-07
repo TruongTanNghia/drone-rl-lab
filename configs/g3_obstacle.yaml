@@ -44,7 +44,7 @@ algo:
   ent_coef: 0.0
   policy_kwargs: {net_arch: {pi: [64, 64], vf: [64, 64]}, log_std_init: -1.0}
   vecnormalize: {obs: true, reward: true}
-  checkpoint_every: 500000
+  checkpoint_every: 100000          # mốc dày để xem lại quá trình huấn luyện
 train_seeds: [0, 1, 2]
 eval: {episodes: 100, seed0: 9000}
 gate: {name: G3, metric: success_rate, op: ">=", value: 0.85}

@@ -141,7 +141,7 @@ class BBoxServoBaseline:
 class SB3Controller:
     """Bọc policy SB3 (PPO/SAC) nạp từ thư mục run, kèm vecnormalize.pkl."""
 
-    def __init__(self, run_dir: str | Path, algo: str = "ppo", deterministic: bool = True):
+    def __init__(self, run_dir: str | Path, algo: str = "ppo", deterministic: bool = True, model_path: str | Path | None = None, vecnorm_path: str | Path | None = None):
         import pickle
 
         from stable_baselines3 import PPO, SAC
@@ -150,10 +150,11 @@ class SB3Controller:
         self.name = algo
         self.deterministic = deterministic
         cls = {"ppo": PPO, "sac": SAC}[algo]
-        self.model = cls.load(str(run_dir / "model.zip"), device="cpu")
+        # model_path/vecnorm_path: nạp một checkpoint giữa chừng (scripts/eval_checkpoints.py) thay cho model cuối.
+        self.model = cls.load(str(model_path or run_dir / "model.zip"), device="cpu")
         # Chuẩn hóa obs bằng thống kê trong vecnormalize.pkl (đọc trực tiếp, không cần env giả).
         self.obs_rms = None
-        vn = run_dir / "vecnormalize.pkl"
+        vn = Path(vecnorm_path) if vecnorm_path else run_dir / "vecnormalize.pkl"
         if vn.exists():
             with open(vn, "rb") as f:
                 vnorm = pickle.load(f)

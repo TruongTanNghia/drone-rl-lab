@@ -11,6 +11,7 @@ results/*/vecnormalize.pkl
 results/*/checkpoints/
 results/*/tb/
 results/*/eval/*/traj_*.json
+results/*/timeline/*/traj_*.json
 results/_library_example/
 results/videos/
 perception/weights/*.pt

@@ -78,8 +78,10 @@ def _run_summary(d: Path) -> dict:
         "gate_rule": cfg.get("gate"),
         "has_model": (d / "model.zip").exists(),
         "has_curve": (d / "train_log.csv").exists(),
+        "has_timeline": (d / "timeline" / "summary.json").exists(),
         "train_meta": meta,
-        "status": "đã huấn luyện" if meta else ("đang huấn luyện" if (d / "train_log.csv").exists() else "chưa có log"),
+        "status": "đã huấn luyện" if meta else ("đã dừng" if (d / "aborted.json").exists() else ("đang huấn luyện" if (d / "train_log.csv").exists() else "chưa có log")),
+        "aborted": json.loads((d / "aborted.json").read_text(encoding="utf-8")) if (d / "aborted.json").exists() else None,
         "progress": _progress(d, cfg),
         "evals": evals,
         "files": {"config": _rel(d / "config.yaml"), "train_log": _rel(d / "train_log.csv"), "train_meta": _rel(d / "train_meta.json")},
@@ -179,6 +181,25 @@ def get_traj(run_id: str, controller: str, seed: int):
     p = d / "eval" / controller / f"traj_{seed}.json"
     if not p.exists():
         raise HTTPException(404, f"thiếu quỹ đạo seed {seed}: {_rel(p)}")
+    return FileResponse(p, media_type="application/json", headers={"X-Source-File": _rel(p)})
+
+
+@app.get("/api/runs/{run_id}/timeline")
+def get_timeline(run_id: str):
+    """Quá trình huấn luyện: mỗi checkpoint đã được bay thử (scripts/eval_checkpoints.py) -> timeline/summary.json."""
+    d = _run_dir(run_id)
+    p = d / "timeline" / "summary.json"
+    doc = _read_json(p, "timeline (chạy python scripts/eval_checkpoints.py --run results/" + run_id + ")")
+    doc["file"] = _rel(p)
+    return doc
+
+
+@app.get("/api/runs/{run_id}/timeline/{step}/traj/{seed}")
+def get_timeline_traj(run_id: str, step: int, seed: int):
+    d = _run_dir(run_id)
+    p = d / "timeline" / str(step) / f"traj_{seed}.json"
+    if not p.exists():
+        raise HTTPException(404, f"thiếu quỹ đạo checkpoint {step} seed {seed}: {_rel(p)}")
     return FileResponse(p, media_type="application/json", headers={"X-Source-File": _rel(p)})
 
 

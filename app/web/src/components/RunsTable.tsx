@@ -81,6 +81,8 @@ export default function RunsTable({ runs }: { runs: RunSummary[] }) {
               <td>
                 {live ? (
                   <span className="stamp stamp-warn">đang train</span>
+                ) : r.status === "đã dừng" ? (
+                  <span className="stamp stamp-mut">đã dừng</span>
                 ) : pol ? (
                   <Provenance runId={r.run_id} file={pol.file} extra={`rule: ${pol.gate.rule}`}>
                     <span className={`stamp ${pol.gate.passed ? "stamp-good" : "stamp-bad"}`}>{pol.gate.passed ? "Đạt" : "Chưa đạt"}</span>

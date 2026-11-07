@@ -1,0 +1,16 @@
+{
+  "run_id": "g0_ppo_s0_20261107-2024",
+  "phase": "g0",
+  "algo": "ppo",
+  "seed": 0,
+  "n_envs": 5,
+  "total_steps": 20000,
+  "git_commit": "nogit",
+  "started_at": "2026-11-07T20:24:21+07:00",
+  "python": "3.12.12",
+  "platform": "Windows-11-10.0.26300-SP0",
+  "finished_at": "2026-11-07T20:24:41+07:00",
+  "wall_time_sec": 19.0,
+  "steps_per_sec": 1076.1,
+  "timesteps_done": 20480
+}

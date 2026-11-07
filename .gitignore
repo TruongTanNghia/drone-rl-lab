@@ -1,0 +1,29 @@
+# môi trường
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+third_party/
+
+# kết quả nặng: không commit model, dataset, video, quỹ đạo
+results/*/model.zip
+results/*/vecnormalize.pkl
+results/*/checkpoints/
+results/*/tb/
+results/*/eval/*/traj_*.json
+results/_library_example/
+results/videos/
+perception/weights/*.pt
+perception/weights/*.onnx
+perception/data/
+*.mp4
+*.npy
+
+# node
+app/web/node_modules/
+app/web/.next/
+app/web/out/
+app/web/next-env.d.ts
+
+# tạm
+docs/screenshots/*.tmp

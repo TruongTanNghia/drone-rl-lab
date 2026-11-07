@@ -1,0 +1,359 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Drone RL Viewer</title>
+<style>
+  :root{--bg:#0b0f17;--panel:#121826;--line:#1f2937;--txt:#e5e7eb;--mut:#9ca3af;--acc:#38bdf8;--good:#34d399;--bad:#f87171;--warn:#fbbf24}
+  *{box-sizing:border-box} html,body{margin:0;height:100%;background:var(--bg);color:var(--txt);font:13px/1.4 system-ui,Segoe UI,Roboto,sans-serif}
+  #app{display:grid;grid-template-columns:1fr 300px;grid-template-rows:auto 1fr auto;height:100%}
+  header{grid-column:1/3;display:flex;gap:12px;align-items:center;padding:8px 12px;border-bottom:1px solid var(--line);background:var(--panel)}
+  header h1{font-size:14px;margin:0 12px 0 0;font-weight:600;letter-spacing:.3px}
+  header .meta{color:var(--mut);font-family:ui-monospace,Consolas,monospace;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  #view{position:relative;min-width:0;min-height:0}
+  canvas.gl{display:block;width:100%;height:100%}
+  #drop{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:10px;background:rgba(11,15,23,.85);border:2px dashed var(--line);margin:16px;border-radius:12px;color:var(--mut);text-align:center}
+  #drop.hidden{display:none}
+  #drop b{color:var(--txt)}
+  button,select,input[type=file]{background:#1f2937;color:var(--txt);border:1px solid #374151;border-radius:6px;padding:5px 10px;cursor:pointer;font:inherit}
+  button:hover{border-color:var(--acc)} button.on{background:var(--acc);color:#04121a;border-color:var(--acc)}
+  aside{border-left:1px solid var(--line);background:var(--panel);display:flex;flex-direction:column;min-height:0;overflow:auto}
+  aside section{padding:10px 12px;border-bottom:1px solid var(--line)}
+  aside h2{font-size:11px;text-transform:uppercase;letter-spacing:.8px;color:var(--mut);margin:0 0 6px}
+  .kv{display:grid;grid-template-columns:auto 1fr;gap:2px 10px;font-family:ui-monospace,Consolas,monospace;font-size:12px}
+  .kv span:nth-child(odd){color:var(--mut)}
+  .badge{display:inline-block;padding:2px 8px;border-radius:999px;font-weight:600;font-size:12px}
+  .badge.good{background:rgba(52,211,153,.15);color:var(--good)} .badge.bad{background:rgba(248,113,113,.15);color:var(--bad)} .badge.warn{background:rgba(251,191,36,.15);color:var(--warn)}
+  #events{list-style:none;margin:0;padding:0;max-height:220px;overflow:auto}
+  #events li{padding:3px 6px;border-radius:4px;cursor:pointer;font-family:ui-monospace,Consolas,monospace;font-size:12px}
+  #events li:hover{background:#1f2937} #events li.good{color:var(--good)} #events li.bad{color:var(--bad)} #events li.info{color:var(--mut)}
+  #cam{width:100%;aspect-ratio:4/3;background:#000;border-radius:6px;display:block}
+  footer{grid-column:1/3;display:flex;gap:10px;align-items:center;padding:8px 12px;border-top:1px solid var(--line);background:var(--panel)}
+  footer input[type=range]{flex:1;accent-color:var(--acc)}
+  footer .t{font-family:ui-monospace,Consolas,monospace;min-width:120px;text-align:right}
+  .legend{display:flex;flex-wrap:wrap;gap:6px 12px;color:var(--mut);font-size:11px}
+  .legend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:4px;vertical-align:-1px}
+  label.chk{color:var(--mut);display:flex;gap:6px;align-items:center}
+</style>
+</head>
+<body>
+<div id="app">
+  <header>
+    <h1>Drone RL Viewer</h1>
+    <input type="file" id="file" accept=".json,application/json">
+    <span class="meta" id="meta">chưa mở file quỹ đạo</span>
+    <span style="flex:1"></span>
+    <label class="chk"><input type="checkbox" id="followCam"> theo drone</label>
+    <label class="chk"><input type="checkbox" id="showRays" checked> tia</label>
+    <label class="chk"><input type="checkbox" id="showTrail" checked> vệt</label>
+  </header>
+  <div id="view">
+    <canvas class="gl" id="gl"></canvas>
+    <div id="drop"><b>Kéo thả file traj_&lt;seed&gt;.json vào đây</b><span>hoặc chọn file ở góc trên. Hỗ trợ ?file=&lt;url&gt; khi chạy qua http.</span></div>
+  </div>
+  <aside>
+    <section>
+      <h2>Kết quả lượt</h2>
+      <div id="outcome"><span class="badge warn">chưa có dữ liệu</span></div>
+      <div class="kv" id="runinfo" style="margin-top:6px"></div>
+    </section>
+    <section>
+      <h2>Trạng thái</h2>
+      <div class="kv" id="hud"></div>
+    </section>
+    <section id="camsec" style="display:none">
+      <h2>Camera nhìn xuống (khung mục tiêu)</h2>
+      <canvas id="cam" width="320" height="240"></canvas>
+    </section>
+    <section>
+      <h2>Sự kiện</h2>
+      <ul id="events"></ul>
+    </section>
+    <section>
+      <h2>Chú giải</h2>
+      <div class="legend">
+        <span><i style="background:#38bdf8"></i>drone</span><span><i style="background:#34d399"></i>đích</span>
+        <span><i style="background:#fbbf24"></i>waypoint</span><span><i style="background:#94a3b8"></i>cột</span>
+        <span><i style="background:#f87171"></i>mục tiêu</span><span><i style="background:#a78bfa"></i>tia</span><span><i style="background:#60a5fa"></i>gió</span>
+      </div>
+      <div style="color:var(--mut);margin-top:6px;font-size:11px">Hệ tọa độ: x trước, y trái, z lên (viewer đổi sang Three.js theo (x, z, −y)). Lưới 1 m.</div>
+    </section>
+  </aside>
+  <footer>
+    <button id="play">▶ Phát</button>
+    <button id="stepb">⏮</button><button id="stepf">⏭</button>
+    <span>Tốc độ</span>
+    <button class="spd on" data-s="1">1×</button><button class="spd" data-s="2">2×</button><button class="spd" data-s="4">4×</button>
+    <input type="range" id="scrub" min="0" max="0" value="0" step="1">
+    <span class="t" id="time">0.00 s / 0.00 s</span>
+  </footer>
+</div>
+
+<script type="importmap">
+{ "imports": {
+  "three": "https://unpkg.com/three@0.170.0/build/three.module.js",
+  "three/addons/": "https://unpkg.com/three@0.170.0/examples/jsm/"
+} }
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+
+// ------------------------------------------------------------ tiện ích tọa độ
+const W2T = (p) => new THREE.Vector3(p[0], p[2], -p[1]);           // world (x,y,z) -> three (x, z, -y)
+const AXIS = new THREE.Matrix4().set(1,0,0,0,  0,0,1,0,  0,-1,0,0,  0,0,0,1); // cột: wx->(1,0,0), wy->(0,0,-1), wz->(0,1,0)
+const AXIS_INV = AXIS.clone().invert();
+function rpyToThree(rpy){ // PyBullet: R = Rz(yaw) Ry(pitch) Rx(roll)
+  const e = new THREE.Euler(rpy[0], rpy[1], rpy[2], 'ZYX');
+  const R = new THREE.Matrix4().makeRotationFromEuler(e);
+  return new THREE.Matrix4().multiplyMatrices(AXIS, R).multiply(AXIS_INV);
+}
+
+// ------------------------------------------------------------ renderer (card onboard: pixelRatio<=1.5, không bóng, Lambert)
+const canvas = document.getElementById('gl');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'low-power' });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
+renderer.shadowMap.enabled = false;
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x0b0f17);
+scene.fog = new THREE.Fog(0x0b0f17, 25, 70);
+const camera = new THREE.PerspectiveCamera(55, 1, 0.05, 300);
+camera.position.set(6, 5, 8);
+const controls = new OrbitControls(camera, canvas);
+controls.enableDamping = true; controls.dampingFactor = 0.08; controls.target.set(0, 1, 0);
+scene.add(new THREE.HemisphereLight(0xcfe8ff, 0x1a1f2b, 0.9));
+const sun = new THREE.DirectionalLight(0xffffff, 0.8); sun.position.set(5, 10, 4); scene.add(sun);
+
+const M = {
+  drone: new THREE.MeshLambertMaterial({ color: 0x38bdf8 }),
+  droneDark: new THREE.MeshLambertMaterial({ color: 0x1e3a4c }),
+  rotor: new THREE.MeshLambertMaterial({ color: 0x9fe3ff, transparent: true, opacity: 0.55 }),
+  goal: new THREE.MeshLambertMaterial({ color: 0x34d399, transparent: true, opacity: 0.85 }),
+  wp: new THREE.MeshLambertMaterial({ color: 0xfbbf24 }),
+  wpDone: new THREE.MeshLambertMaterial({ color: 0x6b5b1e }),
+  col: new THREE.MeshLambertMaterial({ color: 0x94a3b8 }),
+  person: new THREE.MeshLambertMaterial({ color: 0xf87171 }),
+  skin: new THREE.MeshLambertMaterial({ color: 0xf5d0b5 }),
+  ground: new THREE.MeshLambertMaterial({ color: 0x111827 }),
+};
+
+// ------------------------------------------------------------ đối tượng tĩnh theo world
+const worldGroup = new THREE.Group(); scene.add(worldGroup);
+let grid = null;
+function buildWorld(world){
+  worldGroup.clear();
+  const ax = world.arena?.x ?? [-5, 5], ay = world.arena?.y ?? [-5, 5];
+  const sx = ax[1]-ax[0], sy = ay[1]-ay[0];
+  const g = new THREE.Mesh(new THREE.PlaneGeometry(sx, sy), M.ground);
+  g.rotation.x = -Math.PI/2; g.position.set((ax[0]+ax[1])/2, -0.005, -(ay[0]+ay[1])/2); worldGroup.add(g);
+  grid = new THREE.GridHelper(Math.max(sx, sy), Math.max(sx, sy), 0x334155, 0x1f2937);
+  grid.position.set((ax[0]+ax[1])/2, 0, -(ay[0]+ay[1])/2); worldGroup.add(grid);
+  // viền vùng bay
+  const z = world.arena?.z_max ?? 3;
+  const box = new THREE.Box3(new THREE.Vector3(ax[0], 0, -ay[1]), new THREE.Vector3(ax[1], z, -ay[0]));
+  const bh = new THREE.Box3Helper(box, 0x1f2937); worldGroup.add(bh);
+  // đích
+  if (world.goal){
+    const gm = new THREE.Group();
+    gm.add(new THREE.Mesh(new THREE.SphereGeometry(0.12, 16, 12), M.goal));
+    const ring = new THREE.Mesh(new THREE.TorusGeometry(0.35, 0.02, 8, 40), M.goal); ring.rotation.x = Math.PI/2; gm.add(ring);
+    const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.01, 0.01, world.goal[2], 6), M.goal); pole.position.y = -world.goal[2]/2; gm.add(pole);
+    gm.position.copy(W2T(world.goal)); gm.name = 'goal'; worldGroup.add(gm);
+  }
+  // waypoints
+  (world.waypoints||[]).forEach((w, i) => {
+    const m = new THREE.Mesh(new THREE.SphereGeometry(0.18, 14, 10), M.wp.clone()); m.position.copy(W2T(w)); m.name = 'wp'+i; worldGroup.add(m);
+    const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.008, 0.008, w[2], 5), M.wpDone); pole.position.set(w[0], w[2]/2, -w[1]); worldGroup.add(pole);
+    const s = makeLabel(String(i+1)); s.position.copy(W2T(w)).add(new THREE.Vector3(0, 0.35, 0)); worldGroup.add(s);
+  });
+  // cột
+  (world.obstacles||[]).forEach(o => {
+    const h = o.h ?? 4;
+    const c = new THREE.Mesh(new THREE.CylinderGeometry(o.r, o.r, h, 24, 1), M.col); c.position.set(o.x, h/2, -o.y); worldGroup.add(c);
+    const cap = new THREE.Mesh(new THREE.CylinderGeometry(o.r+0.01, o.r+0.01, 0.04, 24), M.droneDark); cap.position.set(o.x, h, -o.y); worldGroup.add(cap);
+  });
+}
+function makeLabel(text){
+  const c = document.createElement('canvas'); c.width = 64; c.height = 64; const x = c.getContext('2d');
+  x.fillStyle = '#fbbf24'; x.font = 'bold 40px sans-serif'; x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillText(text, 32, 34);
+  const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(c), depthTest: false })); sp.scale.set(0.5, 0.5, 1); return sp;
+}
+
+// ------------------------------------------------------------ drone (GLB nếu có, không thì dựng thủ công)
+const DRONE_VISUAL_SCALE = 3.0; // CF2X thật chỉ 9 cm, phóng to để nhìn được ở quy mô sân
+const drone = new THREE.Group(); scene.add(drone);
+const rotors = [];
+function buildProceduralDrone(){
+  const g = new THREE.Group();
+  g.add(new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.02, 0.05), M.drone));
+  const batt = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.012, 0.02), M.droneDark); batt.position.y = 0.016; g.add(batt);
+  const L = 0.0397;
+  [[1,1],[1,-1],[-1,-1],[-1,1]].forEach(([sx,sz], i) => {
+    const arm = new THREE.Mesh(new THREE.BoxGeometry(L*1.6, 0.006, 0.008), M.droneDark);
+    arm.position.set(sx*L*0.55, 0, sz*L*0.55); arm.rotation.y = Math.atan2(-sz, sx); g.add(arm);
+    const motor = new THREE.Mesh(new THREE.CylinderGeometry(0.004, 0.004, 0.02, 8), M.droneDark); motor.position.set(sx*L, 0.008, sz*L); g.add(motor);
+    const rot = new THREE.Mesh(new THREE.CylinderGeometry(0.023, 0.023, 0.002, 18), M.rotor); rot.position.set(sx*L, 0.018, sz*L); g.add(rot); rotors.push(rot);
+  });
+  const led = new THREE.Mesh(new THREE.SphereGeometry(0.006, 8, 6), new THREE.MeshLambertMaterial({ color: 0xff3b3b, emissive: 0xff3b3b })); led.position.set(0.03, 0.005, 0); g.add(led);
+  return g;
+}
+const droneModel = new THREE.Group(); droneModel.scale.setScalar(DRONE_VISUAL_SCALE); drone.add(droneModel);
+droneModel.add(buildProceduralDrone());
+// thử nạp mô hình GLB (chỉ chạy được khi phục vụ qua http)
+const params = new URLSearchParams(location.search);
+const modelUrl = params.get('model') || 'models/cf2.glb';
+if (location.protocol.startsWith('http')) {
+  new GLTFLoader().load(modelUrl, (gltf) => {
+    const obj = gltf.scene;
+    obj.traverse(o => { if (o.isMesh) { o.material = new THREE.MeshLambertMaterial({ color: o.material?.color ?? 0x8899aa }); o.castShadow = false; } });
+    // mesh cf2.dae trong thư viện có trục z lên: đổi sang y lên
+    obj.rotation.x = -Math.PI/2;
+    droneModel.clear(); droneModel.add(obj);
+    const r1 = new THREE.Mesh(new THREE.CylinderGeometry(0.023, 0.023, 0.002, 18), M.rotor); // thêm 4 đĩa rotor mờ cho sống động
+    [[1,1],[1,-1],[-1,-1],[-1,1]].forEach(([sx,sz]) => { const r = r1.clone(); r.position.set(sx*0.0397, 0.012, sz*0.0397); droneModel.add(r); rotors.push(r); });
+  }, undefined, () => {});
+}
+// bóng drone trên mặt đất (vòng tròn mờ, thay cho shadow map)
+const shadowDisc = new THREE.Mesh(new THREE.CircleGeometry(0.2, 24), new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.35 }));
+shadowDisc.rotation.x = -Math.PI/2; shadowDisc.position.y = 0.002; scene.add(shadowDisc);
+
+// mục tiêu "người"
+const person = new THREE.Group(); person.visible = false; scene.add(person);
+{
+  const legs = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.76, 0.3), new THREE.MeshLambertMaterial({ color: 0x27367f })); legs.position.y = 0.38; person.add(legs);
+  const torso = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.68, 0.44), M.person); torso.position.y = 1.1; person.add(torso);
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.13, 14, 10), M.skin); head.position.y = 1.57; person.add(head);
+}
+// vệt bay
+const MAXTRAIL = 4000;
+const trailGeo = new THREE.BufferGeometry(); trailGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(MAXTRAIL*3), 3));
+const trail = new THREE.Line(trailGeo, new THREE.LineBasicMaterial({ color: 0x38bdf8, transparent: true, opacity: 0.8 })); trail.frustumCulled = false; scene.add(trail);
+// tia
+const rayGeo = new THREE.BufferGeometry(); rayGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(32*2*3), 3));
+rayGeo.setAttribute('color', new THREE.BufferAttribute(new Float32Array(32*2*3), 3));
+const rays = new THREE.LineSegments(rayGeo, new THREE.LineBasicMaterial({ vertexColors: true, transparent: true, opacity: 0.8 })); rays.frustumCulled = false; scene.add(rays);
+// gió
+const windArrow = new THREE.ArrowHelper(new THREE.Vector3(1,0,0), new THREE.Vector3(), 1, 0x60a5fa, 0.25, 0.12); windArrow.visible = false; scene.add(windArrow);
+// hình nón camera (G4)
+const camCone = new THREE.Mesh(new THREE.ConeGeometry(1, 1, 4, 1, true), new THREE.MeshBasicMaterial({ color: 0xf87171, wireframe: true, transparent: true, opacity: 0.25 })); camCone.visible = false; scene.add(camCone);
+
+// ------------------------------------------------------------ dữ liệu & phát lại
+let traj = null, frameIdx = 0, playing = false, speed = 1, acc = 0, lastTs = 0;
+const $ = (id) => document.getElementById(id);
+function load(doc){
+  if (!doc || doc.schema !== 'drone-traj/1') { alert('File không đúng schema drone-traj/1'); return; }
+  traj = doc; frameIdx = 0; acc = 0; playing = false; $('play').textContent = '▶ Phát';
+  buildWorld(doc.world || {});
+  $('drop').classList.add('hidden');
+  $('meta').textContent = `${doc.run_id} · ${doc.controller}${doc.source ? ' ('+doc.source+')' : ''} · seed ${doc.seed} · ${doc.frames.length} khung · dt ${doc.dt}s`;
+  const o = doc.outcome || {};
+  $('outcome').innerHTML = o.success ? '<span class="badge good">THÀNH CÔNG</span>' : (o.crashed ? `<span class="badge bad">THẤT BẠI · ${o.reason||''}</span>` : '<span class="badge warn">HẾT GIỜ</span>');
+  $('runinfo').innerHTML = kv({ phase: doc.phase, 'mass×': doc.mass_scale ?? '—', 'waypoints': (doc.world?.waypoints||[]).length, 'cột': (doc.world?.obstacles||[]).length });
+  const ev = $('events'); ev.innerHTML = '';
+  (doc.events||[]).forEach(e => { const li = document.createElement('li'); li.className = e.kind||'info'; li.textContent = `${(e.t??0).toFixed(1)}s  ${e.text}`; li.onclick = () => { seek(Math.round((e.t??0)/doc.dt)); }; ev.appendChild(li); });
+  $('scrub').max = doc.frames.length - 1;
+  const hasBbox = doc.frames.some(f => f.bbox); $('camsec').style.display = hasBbox ? '' : 'none';
+  person.visible = doc.frames.some(f => f.target);
+  windArrow.visible = doc.frames.some(f => f.wind);
+  camCone.visible = hasBbox;
+  const ax = doc.world?.arena?.x ?? [-3,3], ay = doc.world?.arena?.y ?? [-3,3];
+  const span = Math.max(ax[1]-ax[0], ay[1]-ay[0]);
+  camera.position.set((ax[0]+ax[1])/2 + span*0.55, span*0.5, -(ay[0]+ay[1])/2 + span*0.75);
+  controls.target.set((ax[0]+ax[1])/2, 1, -(ay[0]+ay[1])/2);
+  seek(0);
+}
+function kv(o){ return Object.entries(o).map(([k,v]) => `<span>${k}</span><span>${v}</span>`).join(''); }
+function fmt(v, n=2){ return Array.isArray(v) ? v.map(x => (+x).toFixed(n)).join(', ') : (typeof v === 'number' ? v.toFixed(n) : (v ?? '—')); }
+
+function seek(i){
+  if (!traj) return;
+  frameIdx = Math.max(0, Math.min(traj.frames.length-1, i));
+  $('scrub').value = frameIdx;
+  const f = traj.frames[frameIdx];
+  const T = (traj.frames.length-1) * traj.dt;
+  $('time').textContent = `${(f.t).toFixed(2)} s / ${T.toFixed(2)} s`;
+  // drone
+  drone.position.copy(W2T(f.p));
+  drone.setRotationFromMatrix(rpyToThree(f.rpy || [0,0,0]));
+  shadowDisc.position.set(f.p[0], 0.002, -f.p[1]);
+  // vệt
+  const pos = trailGeo.attributes.position; let n = 0;
+  const start = Math.max(0, frameIdx - MAXTRAIL + 1);
+  for (let k = start; k <= frameIdx; k++){ const p = traj.frames[k].p; pos.setXYZ(n++, p[0], p[2], -p[1]); }
+  trailGeo.setDrawRange(0, n); pos.needsUpdate = true; trail.visible = $('showTrail').checked;
+  // waypoint: tô mờ các điểm đã qua
+  if (f.wp != null) (traj.world.waypoints||[]).forEach((w, k) => { const m = worldGroup.getObjectByName('wp'+k); if (m) m.material = k < f.wp ? M.wpDone : M.wp; });
+  // tia
+  if (f.rays && $('showRays').checked){
+    const n = f.rays.length, L = traj.world?.ray_len ?? 4; const rp = rayGeo.attributes.position, rc = rayGeo.attributes.color;
+    for (let k = 0; k < n; k++){
+      const a = k*2*Math.PI/n, d = f.rays[k], hit = d < L - 1e-3;
+      const x0 = f.p[0] + 0.12*Math.cos(a), y0 = f.p[1] + 0.12*Math.sin(a);
+      const x1 = f.p[0] + d*Math.cos(a), y1 = f.p[1] + d*Math.sin(a);
+      rp.setXYZ(2*k, x0, f.p[2], -y0); rp.setXYZ(2*k+1, x1, f.p[2], -y1);
+      const c = hit ? new THREE.Color().setHSL(0.0 + 0.33*Math.min(1, d/L), 0.9, 0.55) : new THREE.Color(0xa78bfa);
+      rc.setXYZ(2*k, c.r, c.g, c.b); rc.setXYZ(2*k+1, c.r, c.g, c.b);
+    }
+    rayGeo.setDrawRange(0, n*2); rp.needsUpdate = true; rc.needsUpdate = true; rays.visible = true;
+  } else rays.visible = false;
+  // gió
+  if (f.wind){ const w = new THREE.Vector3(f.wind[0], 0, -f.wind[1]); const mag = w.length(); windArrow.position.set(f.p[0], f.p[2] + 0.5, -f.p[1]); if (mag > 1e-3){ windArrow.setDirection(w.normalize()); windArrow.setLength(Math.max(0.2, mag*0.5), 0.2, 0.1); } }
+  // mục tiêu + camera
+  if (f.target){ person.position.copy(W2T(f.target)); const nf = traj.frames[Math.min(frameIdx+1, traj.frames.length-1)]; if (nf.target){ const dx = nf.target[0]-f.target[0], dy = nf.target[1]-f.target[1]; if (Math.hypot(dx,dy) > 1e-4) person.rotation.y = Math.atan2(-dy, dx); } }
+  if (f.bbox){
+    const h = f.p[2], camw = traj.world?.camera; const hf = ((camw?.hfov_deg ?? 70) * Math.PI/180);
+    const half = Math.tan(hf/2) * h; camCone.scale.set(half*1.0, h, half*0.75); camCone.position.set(f.p[0], h/2, -f.p[1]); camCone.rotation.y = Math.PI/4;
+    drawCam(f);
+  }
+  // HUD
+  const vv = f.v ? Math.hypot(...f.v) : 0;
+  $('hud').innerHTML = kv({ 'vị trí': fmt(f.p), 'vận tốc': `${fmt(f.v)}  |${vv.toFixed(2)}|`, 'rpy°': f.rpy ? f.rpy.map(r => (r*57.3).toFixed(0)).join(', ') : '—', 'độ cao': fmt(f.p[2]), 'wp': f.wp ?? '—', 'gió': f.wind ? fmt(f.wind) : '—', 'hành động': f.a ? fmt(f.a) : '—', 'reward': f.r != null ? fmt(f.r, 3) : '—', 'khung': f.bbox ? (f.bbox[0] > 0.5 ? `cx ${f.bbox[1].toFixed(2)} cy ${f.bbox[2].toFixed(2)}` : 'mất mục tiêu') : '—' });
+  if ($('followCam').checked){ controls.target.lerp(drone.position, 0.3); }
+}
+function drawCam(f){
+  const c = $('cam'), x = c.getContext('2d'); x.fillStyle = '#0a0a0a'; x.fillRect(0, 0, c.width, c.height);
+  // mặt đất giả lập: lưới phối cảnh đơn giản + chấm mục tiêu thật (nếu có target & pinhole)
+  x.strokeStyle = '#1f2937'; x.lineWidth = 1; for (let i = 0; i <= 8; i++){ x.beginPath(); x.moveTo(i*c.width/8, 0); x.lineTo(i*c.width/8, c.height); x.stroke(); x.beginPath(); x.moveTo(0, i*c.height/8); x.lineTo(c.width, i*c.height/8); x.stroke(); }
+  x.strokeStyle = '#374151'; x.beginPath(); x.moveTo(c.width/2, 0); x.lineTo(c.width/2, c.height); x.moveTo(0, c.height/2); x.lineTo(c.width, c.height/2); x.stroke();
+  if (f.target){ // vị trí thật của mục tiêu chiếu pinhole (chỉ để so khung)
+    const hf = ((traj.world?.camera?.hfov_deg ?? 70) * Math.PI/180), th = Math.tan(hf/2), tv = th * c.height / c.width;
+    const dx = f.target[0]-f.p[0], dy = f.target[1]-f.p[1], depth = f.p[2] - 0.05;
+    if (depth > 0){ const cx = (-dy/depth)/th, cy = (dx/depth)/tv; if (Math.abs(cx) <= 1 && Math.abs(cy) <= 1){ x.fillStyle = '#fbbf24'; x.beginPath(); x.arc((cx+1)/2*c.width, (1-cy)/2*c.height, 3, 0, 6.28); x.fill(); } }
+  }
+  const [vis, cx, cy, w, h] = f.bbox;
+  if (vis > 0.5){ x.strokeStyle = '#f87171'; x.lineWidth = 2; const bw = w*c.width, bh = h*c.height; x.strokeRect((cx+1)/2*c.width - bw/2, (1-cy)/2*c.height - bh/2, bw, bh); x.fillStyle = '#f87171'; x.font = '12px monospace'; x.fillText('target', (cx+1)/2*c.width - bw/2, (1-cy)/2*c.height - bh/2 - 4); }
+  else { x.fillStyle = '#f87171'; x.font = '14px sans-serif'; x.fillText('mất mục tiêu', 10, 20); }
+}
+
+// ------------------------------------------------------------ điều khiển
+$('play').onclick = () => { if (!traj) return; playing = !playing; $('play').textContent = playing ? '⏸ Dừng' : '▶ Phát'; if (playing && frameIdx >= traj.frames.length-1) seek(0); };
+$('stepb').onclick = () => seek(frameIdx-1); $('stepf').onclick = () => seek(frameIdx+1);
+$('scrub').oninput = (e) => { playing = false; $('play').textContent = '▶ Phát'; seek(+e.target.value); };
+document.querySelectorAll('.spd').forEach(b => b.onclick = () => { speed = +b.dataset.s; document.querySelectorAll('.spd').forEach(x => x.classList.toggle('on', x === b)); });
+window.addEventListener('keydown', (e) => { if (e.code === 'Space'){ e.preventDefault(); $('play').click(); } if (e.code === 'ArrowRight') seek(frameIdx+1); if (e.code === 'ArrowLeft') seek(frameIdx-1); });
+$('file').onchange = (e) => readFile(e.target.files[0]);
+const view = $('view');
+['dragenter','dragover'].forEach(ev => view.addEventListener(ev, e => { e.preventDefault(); $('drop').classList.remove('hidden'); }));
+view.addEventListener('drop', e => { e.preventDefault(); const f = e.dataTransfer.files[0]; if (f) readFile(f); else if (traj) $('drop').classList.add('hidden'); });
+view.addEventListener('dragleave', e => { if (traj) $('drop').classList.add('hidden'); });
+function readFile(f){ const r = new FileReader(); r.onload = () => { try { load(JSON.parse(r.result)); } catch (err) { alert('Không đọc được JSON: ' + err); } }; r.readAsText(f); }
+const fileParam = params.get('file');
+if (fileParam) fetch(fileParam).then(r => r.json()).then(d => { load(d); const fr = params.get('frame'); if (fr != null) seek(+fr); else seek(Math.floor(d.frames.length * 0.6)); }).catch(err => { $('meta').textContent = 'không tải được ' + fileParam + ': ' + err; });
+if (params.get('autoplay') === '1') setTimeout(() => { if (traj) $('play').click(); }, 500);
+
+// ------------------------------------------------------------ vòng lặp
+function resize(){ const w = view.clientWidth, h = view.clientHeight; if (canvas.width !== Math.floor(w*renderer.getPixelRatio()) || canvas.height !== Math.floor(h*renderer.getPixelRatio())){ renderer.setSize(w, h, false); camera.aspect = w/h; camera.updateProjectionMatrix(); } }
+function tick(ts){
+  requestAnimationFrame(tick); resize();
+  const dtReal = Math.min(0.1, (ts - lastTs)/1000 || 0); lastTs = ts;
+  if (playing && traj){ acc += dtReal * speed; const adv = Math.floor(acc / traj.dt); if (adv > 0){ acc -= adv*traj.dt; if (frameIdx + adv >= traj.frames.length-1){ seek(traj.frames.length-1); playing = false; $('play').textContent = '▶ Phát'; } else seek(frameIdx + adv); } }
+  rotors.forEach((r, i) => r.rotation.y += (i%2 ? 1 : -1) * (playing ? 0.9 : 0.15));
+  controls.update(); renderer.render(scene, camera);
+}
+requestAnimationFrame(tick);
+window.__viewer = { load, seek, get traj(){ return traj; } };
+</script>
+</body>
+</html>

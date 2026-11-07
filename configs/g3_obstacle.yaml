@@ -1,0 +1,50 @@
+phase: g3
+env:
+  task: obstacle
+  ctrl_freq: 30
+  pyb_freq: 240
+  episode_sec: 30
+  speed_limit: 1.5
+  obs_scales: {pos: 6.0, vel: 2.0, rpy: 1.0, ang_v: 5.0}
+  obstacles:
+    count: 9
+    radius: [0.3, 0.6]
+    height: 4.0
+    box: {x: [-3.5, 3.5], y: [-4, 4], z: [0, 4]}
+    extra_gap: 1.1
+    arena: {x: [-7, 7], y: [-6, 6], z: [0, 4]}
+    start_x: -6.0
+    goal_x: 6.0
+    goal_y: [-2.0, 2.0]
+    fly_z: 1.2
+    goal_tol_xy: 0.5
+    goal_tol_z: 0.6
+    n_rays: 16
+    ray_len: 4.0
+    ray_offset: 0.12
+    drone_radius: 0.25
+    bfs_cell: 0.25
+    clearance_pen_dist: 0.6
+    push_vector: false          # ablation: true → thêm 2 trường vector đẩy
+    max_tilt: 1.2
+    wind_speed: 0.5
+  randomization: {wind_max: 0.0, gust_sigma: 0.0, gust_tau: 2.0, mass_scale: [1.0, 1.0], wind_cd: 0.02}
+reward: {progress: 5.0, time_penalty: 0.03, clearance_pen: 0.1, goal_bonus: 50.0, crash: -50.0}
+algo:
+  name: ppo
+  total_steps: 4000000
+  n_envs: auto
+  n_steps: 1024
+  batch_size: 256
+  n_epochs: 10
+  learning_rate: 0.0003
+  gamma: 0.99
+  gae_lambda: 0.95
+  clip_range: 0.2
+  ent_coef: 0.0
+  policy_kwargs: {net_arch: {pi: [64, 64], vf: [64, 64]}, log_std_init: -1.0}
+  vecnormalize: {obs: true, reward: true}
+  checkpoint_every: 500000
+train_seeds: [0, 1, 2]
+eval: {episodes: 100, seed0: 9000}
+gate: {name: G3, metric: success_rate, op: ">=", value: 0.85}

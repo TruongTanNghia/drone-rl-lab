@@ -1,0 +1,47 @@
+phase: g4
+env:
+  task: target
+  ctrl_freq: 30
+  pyb_freq: 240
+  episode_sec: 30
+  speed_limit: 1.5
+  obs_scales: {pos: 2.0, vel: 2.0, rpy: 1.0, ang_v: 5.0}
+  target:
+    height: 1.7
+    speed: [1.0, 1.4]
+    turn_radius: 9.0
+    fly_z: 4.0
+    cam_fov_deg: 70.0
+    img_w: 320
+    img_h: 240
+    noise_sigma: 0.03
+    drop_prob: 0.08
+    edge_margin: 0.05
+    source: sim                 # train bằng sim; đánh giá thêm --source yolo
+    yolo_every: 2
+    yolo_model: perception/weights/yolo_target.onnx
+    yolo_conf: 0.25
+    bound_xy: 12.0
+    bound_z: [0.5, 8.0]
+    max_tilt: 1.2
+    start_offset: 2.0
+  randomization: {wind_max: 0.0, gust_sigma: 0.0, gust_tau: 2.0, mass_scale: [1.0, 1.0], wind_cd: 0.02}
+reward: {in_frame_base: 1.0, center_k: 0.5, lost: -0.5, alt_pen: 0.1, crash: -50.0}
+algo:
+  name: ppo
+  total_steps: 3000000
+  n_envs: auto
+  n_steps: 1024
+  batch_size: 256
+  n_epochs: 10
+  learning_rate: 0.0003
+  gamma: 0.99
+  gae_lambda: 0.95
+  clip_range: 0.2
+  ent_coef: 0.0
+  policy_kwargs: {net_arch: {pi: [64, 64], vf: [64, 64]}, log_std_init: -1.0}
+  vecnormalize: {obs: true, reward: true}
+  checkpoint_every: 500000
+train_seeds: [0, 1, 2]
+eval: {episodes: 100, seed0: 9000}
+gate: {name: G4, metric: in_frame_frac, op: ">=", value: 0.80, extra: ["mAP50 YOLO >= 0.7 trên test mô phỏng", ">= 10 FPS ở 320 px trên CPU", "đo ở source=yolo"]}

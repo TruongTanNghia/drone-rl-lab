@@ -15,9 +15,7 @@ export default function Provenance({
   return (
     <span className="prov">
       {children}
-      <span className="tip">
-        {`run_id: ${runId}\nfile:   ${file}${extra ? `\n${extra}` : ""}`}
-      </span>
+      <span className="tip">{`run_id: ${runId}\nfile:   ${file}${extra ? `\n${extra}` : ""}`}</span>
     </span>
   );
 }

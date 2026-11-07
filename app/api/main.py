@@ -79,8 +79,35 @@ def _run_summary(d: Path) -> dict:
         "has_model": (d / "model.zip").exists(),
         "has_curve": (d / "train_log.csv").exists(),
         "train_meta": meta,
+        "status": "đã huấn luyện" if meta else ("đang huấn luyện" if (d / "train_log.csv").exists() else "chưa có log"),
+        "progress": _progress(d, cfg),
         "evals": evals,
         "files": {"config": _rel(d / "config.yaml"), "train_log": _rel(d / "train_log.csv"), "train_meta": _rel(d / "train_meta.json")},
+    }
+
+
+def _progress(d: Path, cfg: dict) -> dict | None:
+    """Dòng cuối train_log.csv + tổng bước theo config: để dashboard theo dõi run đang chạy. Không có log thì None."""
+    p = d / "train_log.csv"
+    if not p.exists():
+        return None
+    last = None
+    with open(p, newline="", encoding="utf-8") as f:
+        for r in csv.DictReader(f):
+            last = r
+    if last is None:
+        return None
+    num = lambda v: None if v in ("", "None", None) else float(v)  # noqa: E731
+    return {
+        "timesteps": int(float(last["timesteps"])),
+        "total_steps": int((cfg.get("algo") or {}).get("total_steps") or 0),
+        "ep_rew_mean": num(last.get("ep_rew_mean")),
+        "ep_len_mean": num(last.get("ep_len_mean")),
+        "success_rate": num(last.get("success_rate")),
+        "wall_time": num(last.get("wall_time")),
+        "stage": last.get("stage"),
+        "log_mtime": p.stat().st_mtime,
+        "file": _rel(p),
     }
 
 

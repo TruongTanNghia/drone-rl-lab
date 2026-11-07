@@ -36,6 +36,8 @@ def list_checkpoints(run_dir: Path) -> list[tuple[int, Path, Path | None]]:
         for p in ck.iterdir():
             m = CK_RE.match(p.name)
             if m:
+                if time.time() - p.stat().st_mtime < 15:  # đang được train.py ghi dở
+                    continue
                 n = int(m.group(1))
                 vn = ck / f"vecnormalize_{n}.pkl"
                 out.append((n, p, vn if vn.exists() else None))

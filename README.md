@@ -1,44 +1,49 @@
-# Drone RL Lab — huấn luyện drone bằng RL + DL theo giai đoạn
+# Drone Pilot Trainer — phần mềm huấn luyện học viên lái drone
 
-Hệ thống huấn luyện drone CF2X trong mô phỏng PyBullet (gym-pybullet-drones): **RL** (PPO, Stable-Baselines3) lo điều khiển, **DL** (YOLO nano → ONNX) lo nhận thức. Làm lần lượt G0 → G5 trên một bộ khung cố định (5 giao diện chốt ở G0). Mọi con số trong tài liệu/giao diện đều đọc từ `results/<run_id>/eval/*/metrics.json`; không có dữ liệu mẫu.
+Học viên cầm **tay cầm USB** (hoặc bàn phím), bay trong **sân tập 3D** theo **giáo trình bài tập**; sau mỗi bài **AI chấm điểm** chuỗi thao tác cần và quỹ đạo bay, chỉ ra lỗi **tay run, gắt cần, over-control, lảo đảo**, và gợi ý bài kế tiếp. Có màn hình giảng viên (chấm thi, quản lý lớp — đang làm).
 
-**Trạng thái:** G0 ĐẠT (xem `docs/report_G0.md`). G1–G5: mã nguồn đã có, **chưa train** — bảng kết quả sẽ sinh tự động khi có metrics.
+## Chạy thử
+```
+cd app/web
+npm install
+npm run dev          # http://localhost:3000  (máy nào bận cổng 3000: npx next dev -p 3100)
+```
+Cắm tay cầm USB, bấm một nút bất kỳ để trình duyệt nhận, vào bài và gạt cần. Không có tay cầm: W/S ga, A/D yaw, mũi tên pitch/roll.
 
-## Cài đặt (Windows 11, không GPU, Python 3.12)
-```
-uv venv .venv --python 3.12.12
-uv pip install --python .venv/Scripts/python.exe -r requirements.lock.txt        # pybullet build từ sdist, cần MSVC
-uv pip install --python .venv/Scripts/python.exe -e third_party/gym-pybullet-drones --no-deps
-cd app/web && npm install
-```
-`third_party/gym-pybullet-drones` là clone nhánh `main` (commit `348b5c1`). Ghi chú đọc mã nguồn: `docs/library_notes.md`. Máy và tốc độ mô phỏng: `docs/machine.md`.
+## Giáo trình (app/web/src/lib/sim/lessons.ts)
+| Bài | Tên | Mục tiêu | Đạt |
+|---|---|---|---|
+| BT01 | Làm quen tay cầm | làm đủ 4 kênh, bay 5 s, tiếp đất | ≥ 50 |
+| BT02 | Cất cánh | lên 1,5 m, giữ 5 s trong 1 m quanh bãi | ≥ 60 |
+| BT03 | Giữ vị trí (Hover) | 20 s trong vòng 0,75 m ở 1,5 m | ≥ 60 |
+| BT04 | Bay hình vuông | 4 góc cạnh 4 m theo thứ tự | ≥ 60 |
+| BT05 | Bay số 8 | 2 vòng tròn bán kính 2,2 m | ≥ 60 |
+| BT06 | Hạ cánh | từ 3 m xuống bãi, chạm < 0,8 m/s, lệch < 0,5 m | ≥ 60 |
 
-## Chạy
-```
-python train.py --config configs/g1_hover.yaml --seed 0            # luôn gui=False
-python evaluate.py --run results/<run_id> --controller ppo --episodes 100
-python evaluate.py --run results/<run_id> --controller pid --episodes 100
-python evaluate.py --run results/<run_id> --controller ppo --source yolo --episodes 100   # G4
-python scripts/eval_checkpoints.py --run results/<run_id> --episodes 3   # bay thử mỗi checkpoint → timeline/ (dashboard "Xem lại quá trình huấn luyện")
-python scripts/make_report.py                                        # docs/report_final.md
-python scripts/make_report.py --phase g1 --inject docs/report_G1.md
-python -m pytest
-```
-Viewer độc lập: mở `viewer/index.html` (kéo thả `traj_<seed>.json`) hoặc `python scripts/screenshot_viewer.py <traj> <png>`.
+## AI chấm điểm (app/web/src/lib/sim/grading.ts)
+Mẫu 20 Hz: 4 kênh cần + vị trí/vận tốc/góc. Điểm 100 = Điều khiển 25 + Chính xác 25 + Ổn định 25 + Hoàn thành 25.
+Cờ lỗi (mỗi cờ kèm số đo làm bằng chứng và lời khuyên):
+- **Tay run** — trung vị |sai phân bậc hai| của cần > 0,035 (rung cao tần liên tục).
+- **Gắt cần** — tốc độ gạt cần p95 > 4 hành trình/s.
+- **Over-control** — > 70 lần đảo cần/phút kèm > 20 dao động vị trí/phút.
+- **Lảo đảo** — độ lệch chuẩn góc nghiêng > 7° hoặc dao động liên tục khi cần giữ yên.
+- **Giữ độ cao kém**, **Tiếp đất mạnh/lệch**.
+Gợi ý bài kế tiếp: bài đầu chưa đạt; nếu một lỗi lặp ≥ 3/5 lượt gần nhất thì khuyên ôn bài liên quan.
 
-Dashboard G5 (FastAPI + Next.js + Three.js):
-```
-.venv/Scripts/uvicorn app.api.main:app --port 8000
-cd app/web && npm run dev            # http://localhost:3000, /api/* được proxy sang FastAPI
-```
+## Mô phỏng (app/web/src/lib/sim/drone.ts)
+Quadcopter chế độ góc (angle mode) như drone tập lái: cần pitch/roll → góc nghiêng mục tiêu ±30°, yaw → tốc độ quay, ga → lực đẩy quanh mức treo; vật lý 240 Hz trong trình duyệt (không trễ tay). Mô hình 3D Crazyflie 2.x (`app/web/public/models/cf2.glb`). Gió giật tuỳ chọn.
 
 ## Cấu trúc
 ```
-train.py  evaluate.py  configs/  core/ (config pydantic, util)  envs/ (BaseTask, SmokeEnv, HoverTask, WaypointTask, ObstacleTask, TargetTask)
-perception/ (encoders, camera, bbox_sources, yolo_onnx, make_dataset, train_yolo_colab.ipynb)
-agents/ (controllers: Random/PID/APF/BBoxServo/SB3; model_factory)   evaluation/ (runner, metrics, trajectory)
-viewer/ (index.html Three.js + models/cf2.glb)   app/api (FastAPI)   app/web (Next.js 16)   scripts/   tests/   docs/   results/
+app/web/src/lib/sim/     drone.ts (vật lý) · input.ts (tay cầm/bàn phím) · lessons.ts (giáo trình) · grading.ts (AI chấm)
+app/web/src/components/  FlightSim.tsx (cảnh Three.js, HUD, bảng kết quả)
+app/web/src/app/         / (giáo trình, lịch sử, gợi ý) · /fly/[bài]
 ```
+Lịch sử bay hiện lưu trong trình duyệt (localStorage); bản lớp học sẽ lưu về máy chủ giảng viên.
 
-## Luật của dự án (từ prompt)
-Không làm giả kết quả · không hạ chuẩn cổng · báo "xong" kèm bằng chứng · CPU-first · train không render · đọc mã nguồn thư viện trước khi dùng · mọi thay đổi ghi `docs/experiments.md` · dừng ở mỗi cổng · seed train 0–8999, seed đánh giá ≥ 9000.
+## Lộ trình
+1. ✅ Bản thử nghiệm: bay được, 6 bài, chấm điểm + cờ lỗi, gợi ý.
+2. Màn hình giảng viên: danh sách học viên, phát lại chuyến bay, chấm thi, xuất báo cáo.
+3. Đóng gói Electron (.exe), hiệu chỉnh tay cầm theo đề cương, mô hình chấm học từ dữ liệu giảng viên.
+
+Code RL (drone tự bay) trước đây nằm ở nhánh `legacy/rl`, không dùng cho sản phẩm này.

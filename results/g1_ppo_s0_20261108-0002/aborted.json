@@ -1,6 +1,0 @@
-{
-  "stopped_at": "2026-11-08T00:19+07:00",
-  "timesteps": 875520,
-  "wall_time": 980.9,
-  "reason": "Người dùng yêu cầu dừng để thêm tính năng xem lại quá trình huấn luyện (checkpoint 250k thay vì 50k). Không có model.zip; không dùng cho cổng G1."
-}

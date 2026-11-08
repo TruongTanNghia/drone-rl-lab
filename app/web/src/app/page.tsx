@@ -1,125 +1,128 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import LiveTraining from "@/components/LiveTraining";
-import RoadmapRail from "@/components/RoadmapRail";
-import RunsTable from "@/components/RunsTable";
-import { api, ApiError, isTraining, type RoadmapItem, type RunSummary } from "@/lib/api";
+import { loadAttempts, recommend, type Attempt } from "@/lib/sim/grading";
+import { LESSONS } from "@/lib/sim/lessons";
 
 export default function HomePage() {
-  const [roadmap, setRoadmap] = useState<RoadmapItem[] | null>(null);
-  const [runs, setRuns] = useState<RunSummary[] | null>(null);
-  const [err, setErr] = useState<string | null>(null);
-  const [tick, setTick] = useState(0);
-
+  const [attempts, setAttempts] = useState<Attempt[] | null>(null);
   useEffect(() => {
-    let alive = true;
-    Promise.all([api<RoadmapItem[]>("/api/roadmap"), api<RunSummary[]>("/api/runs")])
-      .then(([r, u]) => {
-        if (!alive) return;
-        setRoadmap(r);
-        setRuns(u);
-        setErr(null);
-      })
-      .catch((e: unknown) => alive && setErr(e instanceof ApiError ? `${e.status}: ${e.message}` : String(e)));
-    return () => {
-      alive = false;
-    };
-  }, [tick]);
-
-  // Khi có run đang train thì làm mới mỗi 6 s để thấy tiến độ.
-  const training = useMemo(() => (runs ?? []).filter(isTraining), [runs]);
-  useEffect(() => {
-    if (!training.length) return;
-    const id = setInterval(() => setTick((t) => t + 1), 6000);
-    return () => clearInterval(id);
-  }, [training.length]);
-
-  if (err)
-    return (
-      <div className="panel p-6 text-bad reveal">
-        <div className="eyebrow mb-2">Không gọi được API</div>
-        <div className="mb-3">{err}</div>
-        <pre className="mono text-txt text-[12.5px]">uvicorn app.api.main:app --port 8000</pre>
-      </div>
-    );
-  if (!roadmap || !runs) return <div className="text-mut mono text-[12.5px]">Đang đọc results/…</div>;
-
-  const passed = roadmap.filter((p) => p.status === "đạt").length;
-  const done = runs.filter((r) => !isTraining(r)).length;
+    const id = setTimeout(() => setAttempts(loadAttempts()), 0);
+    return () => clearTimeout(id);
+  }, []);
+  const rec = useMemo(() => (attempts ? recommend(attempts, LESSONS) : null), [attempts]);
+  const best = (id: string) => Math.max(0, ...(attempts ?? []).filter((a) => a.lessonId === id).map((a) => a.score));
+  const tries = (id: string) => (attempts ?? []).filter((a) => a.lessonId === id).length;
+  const recent = (attempts ?? []).slice(-8).reverse();
 
   return (
-    <div className="flex flex-col gap-7">
-      {/* ── tiêu đề ── */}
+    <div className="flex flex-col gap-7 max-w-[1480px] mx-auto px-6 py-7">
       <section className="reveal grid gap-6 items-end" style={{ gridTemplateColumns: "minmax(0, 1fr) auto" }}>
         <div>
-          <div className="eyebrow mb-3">Nhật ký bay thử · RL + DL · mô phỏng PyBullet</div>
-          <h1 className="display text-[54px] leading-[0.95] max-w-[820px]">
-            Dạy một chiếc Crazyflie <i>tự bay</i>, từ giữ độ cao đến bám người.
+          <div className="eyebrow mb-3">Phần mềm huấn luyện phi công drone · sân tập mô phỏng</div>
+          <h1 className="display text-[52px] leading-[0.95] max-w-[820px]">
+            Cầm tay cầm, bay theo <i>giáo trình</i>, AI chấm từng thao tác.
           </h1>
           <p className="text-mut mt-4 max-w-[640px] text-[14.5px]">
-            Sáu cổng nghiệm thu, mỗi cổng có ngưỡng cố định và chỉ được qua bằng số đo thật trên seed chưa từng train. Rê chuột vào bất kỳ con số nào để xem nó đến từ file nào.
+            Sáu bài từ làm quen tới hạ cánh. Sau mỗi bài, AI phân tích chuỗi cần điều khiển và quỹ đạo bay để chấm điểm, chỉ ra lỗi tay run, gắt cần, over-control, lảo đảo và gợi ý bài kế tiếp.
           </p>
         </div>
-        <div className="flex gap-0 panel px-5 py-3">
+        <div className="flex panel px-5 py-3">
           <div className="readout">
-            <div className="v">
-              {passed}
-              <small>/ 6</small>
-            </div>
-            <div className="l eyebrow">cổng đã qua</div>
+            <div className="v">{LESSONS.filter((l) => best(l.id) >= l.passScore).length}<small>/ {LESSONS.length}</small></div>
+            <div className="l eyebrow">bài đã đạt</div>
           </div>
           <div className="readout">
-            <div className="v">{done}</div>
-            <div className="l eyebrow">run xong</div>
-          </div>
-          <div className="readout">
-            <div className="v" style={{ color: training.length ? "var(--acc-2)" : undefined }}>
-              {training.length}
-            </div>
-            <div className="l eyebrow">đang train</div>
+            <div className="v">{attempts?.length ?? 0}</div>
+            <div className="l eyebrow">lượt bay</div>
           </div>
         </div>
       </section>
 
-      {/* ── ray lộ trình ── */}
-      <section className="panel reveal" style={{ animationDelay: "90ms" }}>
-        <div className="panel-head">
-          <h2>Lộ trình G0 → G5</h2>
-          <span className="eyebrow">trạng thái cổng đọc từ results/*/eval/*/metrics.json</span>
-        </div>
-        <div className="panel-body pt-2">
-          <RoadmapRail roadmap={roadmap} runs={runs} />
-        </div>
-      </section>
-
-      {/* ── đang huấn luyện ── */}
-      {training.length > 0 && (
-        <section className="panel reveal" style={{ animationDelay: "160ms" }}>
+      {rec && (
+        <section className="panel reveal" style={{ animationDelay: "80ms" }}>
           <div className="panel-head">
-            <h2>Đang huấn luyện</h2>
-            <span className="chip chip-acc">
-              <span className="lamp lamp-acc" /> cập nhật mỗi 6 s từ train_log.csv
-            </span>
+            <h2>Gợi ý cho bạn</h2>
+            <span className="eyebrow">cá nhân hoá theo lịch sử bay</span>
           </div>
-          <div className="panel-body grid gap-4" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(420px, 1fr))" }}>
-            {training.map((r) => (
-              <LiveTraining key={r.run_id} run={r} />
-            ))}
+          <div className="panel-body flex items-center gap-4 flex-wrap">
+            <Link href={`/fly/${rec.lessonId}`} className="btn" style={{ borderColor: "var(--acc)", color: "var(--acc-2)", fontSize: 14, padding: "8px 16px" }}>
+              ▶ Bay {rec.lessonId} · {LESSONS.find((l) => l.id === rec.lessonId)?.name}
+            </Link>
+            <span className="text-mut text-[13px]">{rec.why}</span>
           </div>
         </section>
       )}
 
-      {/* ── sổ run ── */}
-      <section id="runs" className="panel reveal" style={{ animationDelay: "230ms" }}>
+      <section className="panel reveal" style={{ animationDelay: "140ms" }}>
         <div className="panel-head">
-          <h2>Sổ run</h2>
-          <span className="eyebrow">{runs.length} run trong results/</span>
+          <h2>Giáo trình</h2>
+          <span className="eyebrow">mỗi bài có mục tiêu, thời gian giới hạn và điểm đạt</span>
         </div>
-        <div className="panel-body pt-2">
-          <RunsTable runs={runs} />
+        <div className="panel-body grid gap-3" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))" }}>
+          {LESSONS.map((l, i) => {
+            const b = best(l.id);
+            const passed = b >= l.passScore;
+            return (
+              <Link key={l.id} href={`/fly/${l.id}`} className="border border-line p-4 flex flex-col gap-2 text-txt hover:border-acc transition-colors reveal" style={{ background: "rgba(0,0,0,0.25)", animationDelay: `${160 + i * 50}ms` }}>
+                <div className="flex items-center justify-between">
+                  <span className="display text-[24px]">
+                    <i>{l.id}</i> {l.name}
+                  </span>
+                  {attempts && (b > 0 ? <span className={`stamp ${passed ? "stamp-good" : "stamp-bad"}`}>{passed ? "Đạt" : "Chưa đạt"}</span> : <span className="stamp stamp-mut">chưa bay</span>)}
+                </div>
+                <div className="text-mut text-[12.5px]">{l.goal}</div>
+                <div className="flex gap-3 mono text-[11.5px] text-dim mt-auto">
+                  <span>≤ {l.timeLimit} s</span>
+                  <span>đạt ≥ {l.passScore}</span>
+                  {b > 0 && <span className="text-acc2">tốt nhất {b}</span>}
+                  {tries(l.id) > 0 && <span>{tries(l.id)} lượt</span>}
+                </div>
+              </Link>
+            );
+          })}
         </div>
       </section>
+
+      {recent.length > 0 && (
+        <section className="panel reveal" style={{ animationDelay: "200ms" }}>
+          <div className="panel-head">
+            <h2>Lượt bay gần đây</h2>
+            <span className="eyebrow">lưu trên máy này · bản lớp học sẽ lưu về máy chủ giảng viên</span>
+          </div>
+          <div className="panel-body pt-2">
+            <table className="data">
+              <thead>
+                <tr>
+                  <th>lúc</th>
+                  <th>bài</th>
+                  <th>điểm</th>
+                  <th>điều khiển</th>
+                  <th>chính xác</th>
+                  <th>ổn định</th>
+                  <th>hoàn thành</th>
+                  <th>lỗi</th>
+                </tr>
+              </thead>
+              <tbody>
+                {recent.map((a) => (
+                  <tr key={a.date}>
+                    <td className="mono text-mut">{new Date(a.date).toLocaleString("vi-VN")}</td>
+                    <td className="mono">{a.lessonId}</td>
+                    <td className="mono text-acc2">{a.score}</td>
+                    <td className="mono">{a.parts.control}</td>
+                    <td className="mono">{a.parts.accuracy}</td>
+                    <td className="mono">{a.parts.stability}</td>
+                    <td className="mono">{a.parts.completion}</td>
+                    <td className="text-[12px]">{a.flags.map((f) => f.name).join(", ") || <span className="text-good">sạch</span>}{a.status === "failed" && <span className="text-bad"> · {a.reason}</span>}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      )}
     </div>
   );
 }

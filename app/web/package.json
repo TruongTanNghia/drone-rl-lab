@@ -1,19 +1,14 @@
 {
-  "name": "web",
+  "name": "drone-pilot-trainer",
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "sync-viewer": "node scripts/sync-viewer.mjs",
-    "predev": "npm run sync-viewer",
-    "prebuild": "npm run sync-viewer",
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
     "lint": "eslint"
   },
   "dependencies": {
-    "@react-three/drei": "^10.7.9",
-    "@react-three/fiber": "^9.8.2",
     "@types/three": "^0.187.0",
     "next": "16.4.5",
     "react": "19.3.0",
